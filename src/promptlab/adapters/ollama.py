@@ -28,10 +28,16 @@ TRANSIENT_STATUS_CODES = {408, 429, 500, 502, 503, 504}
 class OllamaAdapter:
     """One adapter class; Mistral and Qwen differ only by configured model_id."""
 
-    def __init__(self, *, model_id: str, base_url: str, timeout_seconds: float = 180.0) -> None:
+    def __init__(
+        self,
+        model_id: str,
+        base_url: str | None = None,
+        timeout_seconds: float = 180.0,
+    ) -> None:
+        settings = Settings.from_env()
         self.provider = "ollama"
         self.model_id = model_id
-        self._base_url = base_url.rstrip("/")
+        self._base_url = (base_url or settings.ollama_base_url).rstrip("/")
         self._timeout_seconds = timeout_seconds
 
     def complete(self, request: CompletionRequest, run_id: str) -> CompletionResult:
@@ -80,15 +86,12 @@ class OllamaAdapter:
                 timeout=self._timeout_seconds,
             )
             latency_ms = int((time.perf_counter() - started) * 1000)
-            try:
-                response.raise_for_status()
-            except httpx.HTTPStatusError as exc:
-                error_type = _classify_http_error(exc).__name__
-                payload = _json_object(exc.response)
-            else:
-                payload = _json_object(response)
-                if payload.get("done_reason") == "length":
-                    error_type = TruncatedResponseError.__name__
+            status_code = int(getattr(response, "status_code", 200))
+            payload = _json_object(response)
+            if status_code >= 400:
+                error_type = _classify_status(status_code)
+            elif payload.get("done_reason") == "length":
+                error_type = TruncatedResponseError.__name__
         except (httpx.TimeoutException, httpx.NetworkError):
             latency_ms = int((time.perf_counter() - started) * 1000)
             error_type = TransientProviderError.__name__
@@ -99,7 +102,7 @@ class OllamaAdapter:
         input_tokens = _optional_int(payload.get("prompt_eval_count"))
         output_tokens = _optional_int(payload.get("eval_count"))
         stop_reason = payload.get("done_reason")
-        response_text = payload.get("response")
+        response_text = _completion_text(payload)
         return CallRecord(
             record_id=str(uuid4()),
             run_id=run_id,
@@ -147,21 +150,35 @@ def _backoff_seconds(failed_attempt: int) -> float:
     return ceiling + jitter
 
 
-def _classify_http_error(exc: httpx.HTTPStatusError) -> type[Exception]:
-    status = exc.response.status_code
-    if status in TRANSIENT_STATUS_CODES:
-        return TransientProviderError
-    return PermanentProviderError
+def _classify_status(status_code: int) -> str:
+    if status_code in TRANSIENT_STATUS_CODES:
+        return TransientProviderError.__name__
+    return PermanentProviderError.__name__
 
 
-def _json_object(response: httpx.Response) -> dict[str, Any]:
+def _json_object(response: object) -> dict[str, Any]:
+    json_method = getattr(response, "json", None)
+    if not callable(json_method):
+        return {}
     try:
-        payload: Any = response.json()
+        payload: Any = json_method()
     except ValueError:
         return {}
     if isinstance(payload, dict):
         return payload
     return {}
+
+
+def _completion_text(payload: dict[str, Any]) -> str | None:
+    response_text = payload.get("response")
+    if isinstance(response_text, str):
+        return response_text
+    message = payload.get("message")
+    if isinstance(message, dict):
+        content = message.get("content")
+        if isinstance(content, str):
+            return content
+    return None
 
 
 def _optional_int(value: object) -> int:
