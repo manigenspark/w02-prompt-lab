@@ -74,14 +74,17 @@ def render_comparison(records: list[CallRecord], settings: Settings) -> str:
         "",
         (
             "Both models ran locally through Ollama on the same twelve summarization cases, "
-            "baseline prompt, temperature, and output ceiling. Provider charge is $0.00 for "
-            "both; this comparison uses success counts, tokens, and latency only."
+            f"baseline prompt, temperature, and {MAX_OUTPUT_TOKENS}-token output ceiling. The "
+            "adapter disables native reasoning output for every model, so the token counts "
+            "below measure answer generation rather than hidden reasoning. Provider charge is "
+            "$0.00 for both; this comparison uses success counts, tokens, and latency only."
         ),
         "",
     ]
     for config in settings.models.values():
         model_records = [record for record in records if record.model_id == config.model_id]
         successes = [record for record in model_records if record.error_type is None]
+        truncated = [record for record in model_records if record.stop_reason == "length"]
         latencies = [record.latency_ms for record in successes]
         input_tokens = sum(record.input_tokens for record in successes)
         output_tokens = sum(record.output_tokens for record in successes)
@@ -91,6 +94,7 @@ def render_comparison(records: list[CallRecord], settings: Settings) -> str:
                 "",
                 f"- Successful completions: {len(successes)} / 12",
                 f"- Attempts recorded: {len(model_records)}",
+                f"- Truncated attempts (output ceiling reached): {len(truncated)}",
                 f"- Total input tokens (successful): {input_tokens}",
                 f"- Total output tokens (successful): {output_tokens}",
                 f"- Median latency (successful): {_median(latencies):.0f} ms",

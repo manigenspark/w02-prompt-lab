@@ -1,4 +1,4 @@
-from typing import Literal, Protocol, runtime_checkable
+from typing import Literal, Protocol
 
 from pydantic import BaseModel
 
@@ -23,7 +23,6 @@ class CompletionResult(BaseModel):
     records: list[CallRecord]
 
 
-@runtime_checkable
 class ModelAdapter(Protocol):
     provider: str
     model_id: str
