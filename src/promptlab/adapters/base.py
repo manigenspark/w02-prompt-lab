@@ -6,7 +6,7 @@ from promptlab.usage import CallRecord
 
 
 class CompletionRequest(BaseModel):
-    task: Literal["triage", "summarization", "extraction"]
+    task: Literal["triage", "summarization", "extraction", "summarize"]
     case_id: str
     prompt_id: str
     prompt_version: str

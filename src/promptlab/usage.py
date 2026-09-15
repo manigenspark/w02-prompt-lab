@@ -23,7 +23,7 @@ class CallRecord(BaseModel):
     timestamp: datetime
     provider: Literal["ollama"]
     model_id: str
-    task: Literal["triage", "summarization", "extraction"]
+    task: Literal["triage", "summarization", "extraction", "summarize"]
     case_id: str
     prompt_id: str
     prompt_version: str

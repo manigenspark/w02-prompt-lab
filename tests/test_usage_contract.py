@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import get_args
 
 import pytest
@@ -69,7 +70,7 @@ def test_local_provider_and_task_literals_are_pinned() -> None:
     task_annotation = CallRecord.model_fields["task"].annotation
 
     assert set(get_args(provider_annotation)) == {"ollama"}
-    assert set(get_args(task_annotation)) == {"triage", "summarization", "extraction"}
+    assert set(get_args(task_annotation)) == {"triage", "summarization", "extraction", "summarize"}
 
 
 def test_timestamp_must_be_timezone_aware() -> None:
@@ -88,7 +89,7 @@ def test_unknown_model_raises() -> None:
         compute_cost("not-a-configured-model", input_tokens=10, output_tokens=10)
 
 
-def test_append_record_appends_jsonl(tmp_path, monkeypatch) -> None:
+def test_append_record_appends_jsonl(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
     record = make_record()
 
