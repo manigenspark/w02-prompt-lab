@@ -2,6 +2,17 @@
 
 Both models ran locally through Ollama on the same twelve summarization cases, baseline prompt, temperature, and 512-token output ceiling. The adapter disables native reasoning output for every model, so the token counts below measure answer generation rather than hidden reasoning. Provider charge is $0.00 for both; this comparison uses success counts, tokens, and latency only.
 
+| Metric | Mistral | Qwen |
+| --- | ---: | ---: |
+| Cases | 12 | 12 |
+| Successful completions | 12 / 12 | 12 / 12 |
+| Truncated (`stop_reason=length`) | 0 | 0 |
+| Input tokens (successful, sum) | 2,679 | 2,487 |
+| Output tokens (successful, sum) | 1,602 | 774 |
+| Median latency (successful, ms) | 5,152 | 2,882 |
+| Max latency (successful, ms) | 8,720 | 6,971 |
+| Observation count | 12 | 12 |
+
 ## mistral (`mistral:7b`)
 
 - Successful completions: 12 / 12

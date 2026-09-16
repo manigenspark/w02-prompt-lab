@@ -167,20 +167,38 @@ w02-prompt-lab/
 │   └── triage.jsonl
 ├── docs/
 ├── reports/
+│   └── comparison.md
 ├── scripts/
 │   └── raw_call_example.py
 ├── src/
-│   └── promptlab/
-│       ├── __init__.py
-│       ├── config.py
-│       ├── errors.py
-│       ├── usage.py
-│       └── prompts/
-│           └── baseline.v0.md
+│   ├── promptlab/
+│   │   ├── adapters/
+│   │   ├── usage.py
+│   │   ├── structured.py
+│   │   ├── scoring.py
+│   │   ├── rules.py
+│   │   └── run.py
+│   └── prompts/
 ├── tests/
-│   └── test_usage_contract.py
 ├── pyproject.toml
 └── uv.lock
 ```
 
-Start with the Day 1 assignment and the supplied raw Ollama call example.
+Start with the Day 1 assignment and the supplied raw Ollama call example. Prompt files live in `src/prompts/`, not under `src/promptlab/prompts/`.
+
+## Later Days
+
+Day 2 adds `ModelAdapter` / `OllamaAdapter` and compares Mistral with Qwen on the same baseline prompt.
+
+Day 3 validates structured summarization and extraction with one bounded semantic repair.
+
+Day 4 scores two frozen triage prompts against gold labels. `triage.v1` is the Day 5 triage prompt.
+
+Day 5 is the integration harness:
+
+```bash
+uv run promptlab --run-id "<uuid>"
+```
+
+That command runs 3 tasks × 2 models × 12 cases, scores deterministically, and writes `reports/comparison.md` plus `docs/model-decision.md`. Qwen rows are prompt-transfer results. Local provider/API cost remains `$0.00`.
+
