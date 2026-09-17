@@ -68,6 +68,34 @@ def _median(values: list[int]) -> float:
     return float(statistics.median(values))
 
 
+TRUNCATION_APPENDIX = """
+## Truncation evidence from the reasoning-enabled run
+
+An earlier run (`run_id=2c7d725b-84b6-4806-9b39-5cb32b3c15cc`) used the identical
+prompt, temperature, and 512-token ceiling but left Qwen's native reasoning
+output enabled. Under that configuration Qwen truncated on two of twelve cases:
+
+| Case | Model | input_tokens | output_tokens | stop_reason | error_type |
+|---|---|---|---|---|---|
+| S01 | `qwen3:8b` | 238 | 512 | `length` | `TruncatedResponseError` |
+| S02 | `qwen3:8b` | 225 | 512 | `length` | `TruncatedResponseError` |
+
+Both attempts consumed the entire output budget; S01 returned no answer text at
+all and S02 returned a partial field list. Mistral completed the same S01
+document in 169 output tokens, so document length was not the cause. Reasoning
+tokens are billed against the same `num_predict` ceiling as the answer, which is
+why only the hybrid-reasoning model hit the limit.
+
+Two consequences worth recording. First, truncation was classified as
+`TruncatedResponseError` and was not retried, which is correct: a second
+identical attempt would exhaust the same budget. Second, with reasoning enabled
+Qwen's median successful latency was 17604 ms against 5152 ms for Mistral, and
+its successful cases averaged roughly 400 output tokens. Those totals are not
+comparable to Mistral's answer-only tokens, which is why the adapter disables
+reasoning output uniformly for the run reported above.
+"""
+
+
 def render_comparison(records: list[CallRecord], settings: Settings) -> str:
     lines = [
         "# Day 2 model comparison",
@@ -80,7 +108,42 @@ def render_comparison(records: list[CallRecord], settings: Settings) -> str:
             "$0.00 for both; this comparison uses success counts, tokens, and latency only."
         ),
         "",
+        "| Metric | Mistral | Qwen |",
+        "| --- | ---: | ---: |",
     ]
+    by_name: dict[str, list[CallRecord]] = {}
+    for config in settings.models.values():
+        by_name[config.logical_name] = [
+            record for record in records if record.model_id == config.model_id
+        ]
+
+    mistral_rows = by_name.get("mistral", [])
+    qwen_rows = by_name.get("qwen", [])
+    mistral_ok = [row for row in mistral_rows if row.error_type is None]
+    qwen_ok = [row for row in qwen_rows if row.error_type is None]
+    lines.extend(
+        [
+            "| Cases | 12 | 12 |",
+            f"| Successful completions | {len(mistral_ok)} / 12 | {len(qwen_ok)} / 12 |",
+            "| Truncated (`stop_reason=length`) | "
+            f"{sum(1 for row in mistral_rows if row.stop_reason == 'length')} | "
+            f"{sum(1 for row in qwen_rows if row.stop_reason == 'length')} |",
+            "| Input tokens (successful, sum) | "
+            f"{sum(row.input_tokens for row in mistral_ok):,} | "
+            f"{sum(row.input_tokens for row in qwen_ok):,} |",
+            "| Output tokens (successful, sum) | "
+            f"{sum(row.output_tokens for row in mistral_ok):,} | "
+            f"{sum(row.output_tokens for row in qwen_ok):,} |",
+            "| Median latency (successful, ms) | "
+            f"{_median([row.latency_ms for row in mistral_ok]):,.0f} | "
+            f"{_median([row.latency_ms for row in qwen_ok]):,.0f} |",
+            "| Max latency (successful, ms) | "
+            f"{max((row.latency_ms for row in mistral_ok), default=0):,} | "
+            f"{max((row.latency_ms for row in qwen_ok), default=0):,} |",
+            f"| Observation count | {len(mistral_rows)} | {len(qwen_rows)} |",
+            "",
+        ]
+    )
     for config in settings.models.values():
         model_records = [record for record in records if record.model_id == config.model_id]
         successes = [record for record in model_records if record.error_type is None]
@@ -132,7 +195,7 @@ def render_comparison(records: list[CallRecord], settings: Settings) -> str:
                 "Token totals also differ across models for identical inputs, so a short sample "
                 "from only one model would not estimate the other's workload."
             )
-    lines.extend(["## Observation", "", observation, ""])
+    lines.extend(["## Observation", "", observation, "", TRUNCATION_APPENDIX.strip(), ""])
     return "\n".join(lines)
 
 

@@ -1,9 +1,14 @@
 .env
 .venv/
+.DS_Store
+src/prompts/triage.friend*.md
+scripts/run_friend_triage.py
+docs/day4-friend-*.jsonl
 __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 *.py[cod]
 runs/
+study/
 

@@ -60,6 +60,35 @@ def test_complete_structured_repairs_once() -> None:
     assert adapter.calls == 2
 
 
+class FencedStubAdapter:
+    provider = "ollama"
+    model_id = "fixture-model"
+
+    def complete(self, request: CompletionRequest, run_id: str) -> CompletionResult:
+        return CompletionResult(
+            succeeded=True,
+            text=(
+                "Based on the document:\n"
+                "```json\n"
+                '{"value":"from-fence"}\n'
+                "```\n"
+            ),
+            error_type=None,
+            records=[],
+        )
+
+
+def test_complete_structured_unwraps_json_fenced_after_preamble() -> None:
+    result = complete_structured(
+        FencedStubAdapter(),
+        _request(),
+        TinySchema,
+        "fixture-run",
+        max_repairs=0,
+    )
+    assert result == TinySchema(value="from-fence")
+
+
 def test_repair_request_carries_validation_context() -> None:
     adapter = RepairingStubAdapter()
 

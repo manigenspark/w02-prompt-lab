@@ -83,6 +83,7 @@ def run_case(
             case_id=case["id"],
             model_name=model_name,
             model_id=adapter.model_id,
+            prompt_id="triage",
             prompt_version=prompt_version,
             succeeded=False,
             repairs=max(0, adapter.calls - 1),
@@ -96,6 +97,7 @@ def run_case(
         model_name=model_name,
         model_id=adapter.model_id,
         prompt_version=prompt_version,
+        prompt_id="triage",
         succeeded=True,
         repairs=max(0, adapter.calls - 1),
         output=parsed.model_dump(),
@@ -145,6 +147,9 @@ def main() -> None:
                     run_id=run_id,
                     model_name=config.logical_name,
                     prompt_version=prompt_version,
+                    model_id=record.model_id,
+                    prompt_id="triage",
+                    source=case["source"],
                 )
             )
             print(

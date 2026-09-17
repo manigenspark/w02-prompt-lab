@@ -37,6 +37,7 @@ class OutputRecord(Record):
     case_id: str
     model_name: str
     model_id: str
+    prompt_id: str
     prompt_version: str
     succeeded: bool
     repairs: int
@@ -49,6 +50,8 @@ class ScoreRecord(Record):
     task: TaskName
     case_id: str
     model_name: str
+    model_id: str
+    prompt_id: str
     prompt_version: str
     scorer_version: str
     metric: str
@@ -64,7 +67,7 @@ def append_record(path: Path, record: Record) -> None:
         handle.write(record.model_dump_json() + "\n")
 
 
-def load_records[T: Record](path: Path, record_type: type[T]) -> list[T]:
+def load_records[T: BaseModel](path: Path, record_type: type[T]) -> list[T]:
     if not path.exists():
         return []
     records: list[T] = []

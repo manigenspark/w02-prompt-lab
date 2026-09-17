@@ -9,13 +9,25 @@ from promptlab.adapters.base import CompletionRequest, ModelAdapter
 
 def _unwrap_json(text: str) -> str:
     cleaned = text.strip()
-    if not cleaned.startswith("```"):
-        return cleaned
-    lines = cleaned.splitlines()
-    lines = lines[1:]
-    if lines and lines[-1].strip() == "```":
-        lines = lines[:-1]
-    return "\n".join(lines)
+    if cleaned.startswith("```"):
+        lines = cleaned.splitlines()
+        body = lines[1:]
+        if body and body[-1].strip() == "```":
+            body = body[:-1]
+        cleaned = "\n".join(body).strip()
+    elif "```" in cleaned:
+        start = cleaned.find("```")
+        rest = cleaned[start + 3 :]
+        if rest.lstrip().lower().startswith("json"):
+            rest = rest.lstrip()[4:]
+        end = rest.find("```")
+        if end != -1:
+            cleaned = rest[:end].strip()
+    start = cleaned.find("{")
+    end = cleaned.rfind("}")
+    if start != -1 and end > start:
+        return cleaned[start : end + 1]
+    return cleaned
 
 
 def _coerce(payload: object) -> object:
@@ -28,6 +40,9 @@ def _coerce(payload: object) -> object:
     citation = payload.get("citation")
     if isinstance(citation, list):
         payload["citation"] = citation[0] if citation else None
+    if "value" in payload and "status" not in payload:
+        value = payload.get("value")
+        payload["status"] = "absent" if value in (None, "", []) else "present"
     if payload.get("status") == "absent" and "value" not in payload:
         payload["value"] = None
         payload.setdefault("citation", None)
@@ -53,7 +68,6 @@ def complete_structured[T: BaseModel](
 
     current = request
     last_error = ""
-
     for attempt in range(max_repairs + 1):
         result = adapter.complete(current, run_id)
         if result.text is None:

@@ -73,7 +73,7 @@ def render_prompt(template: str, document_text: str, schema: type[BaseModel]) ->
             "\n\nEach EvidenceField must be "
             '{"value": string or list or null, "status": "present"|"absent"|"ambiguous", '
             '"citation": string or null}. Never use keys named text, field, or field_name. '
-            'document_status must be exactly valid, contradictory, superseded, or unsupported.'
+            "document_status must be exactly valid, contradictory, superseded, or unsupported."
         )
         user_content = f"<document>\n{document_text}\n</document>"
         return system.strip(), user_content
@@ -125,6 +125,7 @@ def run_case(
             case_id=case["id"],
             model_name=model_name,
             model_id=adapter.model_id,
+            prompt_id=prompt_id,
             prompt_version=prompt_version,
             succeeded=False,
             repairs=max(0, adapter.calls - 1),
@@ -137,6 +138,7 @@ def run_case(
         case_id=case["id"],
         model_name=model_name,
         model_id=adapter.model_id,
+        prompt_id=prompt_id,
         prompt_version=prompt_version,
         succeeded=True,
         repairs=max(0, adapter.calls - 1),
